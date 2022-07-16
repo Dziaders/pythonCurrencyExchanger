@@ -1,10 +1,8 @@
 import xml.etree.ElementTree as ET
 import requests
-import re
-
 
 UsedData = ''
-DataFolder = ''
+DataFile = ''
 namespaces = {'ns': 'http://www.ecb.int/vocabulary/2002-08-01/eurofxref'}
 URL = 'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml'
 amount = 0
@@ -15,25 +13,24 @@ class Calculator:
     def __init__(self, amount, currency):
         self.amount = amount
         self.currency = currency
-        global DataFolder
+        global DataFile
 
     def exchange(self):
-        # self.amount = input('How much money would you like to exchange: ')
-        # self.currency = input('To which currency would you like to exchange to: ')
-        tree = ET.parse(DataFolder)
+        tree = ET.parse(DataFile)
         root = tree.getroot()
         match = root.find('.//ns:Cube[@currency="{}"]'.format(self.currency.upper()), namespaces=namespaces)
-        ex_money = round(float(self.amount) * float(match.attrib['rate']), 2)
-        print('The exchange of {} EUR to {} would be {}'.format(self.amount, self.currency, ex_money))
+        exchanged_amount = round(float(self.amount) * float(match.attrib['rate']), 2)
+        print('The exchange of {} EUR to {} would be {}'.format(self.amount, self.currency, exchanged_amount))
 
 
 def input_reader():
     global currency
     global amount
-    tree = ET.parse(DataFolder)
+    tree = ET.parse(DataFile)
     root = tree.getroot()
+
     while True:
-        amount = input('How much money would you like to exchange: ')
+        amount = input('\nHow much money would you like to exchange: ')
         amount = amount.replace(',', '.')
         try:
             float(amount)
@@ -52,26 +49,35 @@ def input_reader():
 
 
 def rates_downloader():
+    global DataFile
+    global UsedData
+    UsedData = requests.get(URL)
+
     try:
-        global DataFolder
-        global UsedData
-        UsedData = requests.get(URL)
         open('eurofxref-daily.xml', 'wb').write(UsedData.content)
-        DataFolder = 'eurofxref-daily.xml'
+        DataFile = 'eurofxref-daily.xml'
     except requests.exceptions.RequestException as e:
         print('Could not download current data - using historic data \nerror: ', e, '\n\n')
-        DataFolder = 'eurofxref-daily-old.xml'
+        DataFile = 'eurofxref-daily-old.xml'
 
 
 def data_saver():
-    global DataFolder
+    global DataFile
     global UsedData
-    if DataFolder == 'eurofxref-daily.xml':
+
+    if DataFile == 'eurofxref-daily.xml':
         open('eurofxref-daily-old.xml', 'wb').write(UsedData.content)
 
 
-rates_downloader()
-input_reader()
-action = Calculator(amount, currency)
-action.exchange()
-data_saver()
+def main():
+    rates_downloader()
+
+    while True:
+        input_reader()
+        action = Calculator(amount, currency)
+        action.exchange()
+        data_saver()
+        print("\n")
+
+
+main()
